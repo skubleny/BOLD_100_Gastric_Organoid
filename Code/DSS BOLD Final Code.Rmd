@@ -1,0 +1,1044 @@
+---
+title: "DSS"
+author: "Daniel Skubleny"
+date: "03/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Libraries
+```{r}
+#install.packages("~/Path/DSS_1.3.tar", repos = NULL, type="source")
+library(DSS)
+library(readxl)
+library(reshape2)
+library(pheatmap)
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+
+```
+
+#Load data
+```{r}
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/DSS_bold.csv'
+DSS_bold <-read.csv(urlfile,stringsAsFactors = FALSE, header = TRUE, row.names = 1)
+
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/dDSS_bold_cancer.csv'
+dDSS_bold_cancer <-read.csv(urlfile,stringsAsFactors = FALSE, header = TRUE, row.names = 1)
+
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/DSS_bold_wide_individual_dDSS.csv'
+DSS_bold_wide_individual_dDSS <-read.csv(urlfile,stringsAsFactors = FALSE, header = TRUE, row.names = 1)
+
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/nanostring_data.csv'
+nanostring_data <-read.csv(urlfile,stringsAsFactors = FALSE, header = TRUE, row.names = 1)
+
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/DSS_bold.csv'
+DSS_bold <-read.csv(urlfile,stringsAsFactors = FALSE, header = TRUE, as.is = TRUE)
+
+
+```
+
+#////////Visualizing ic50 and DSS
+#DSS vs IC50 
+```{r}
+DSS_bold$tissue = as.factor(DSS_bold$tissue)
+levels(DSS_bold$tissue) <- c("Cancer", "Normal")
+
+dss_ic50_facet = ggplot(DSS_bold, aes(x= IC50, y = DSS_3, fill=Drug.Name)) +
+  geom_point(shape = 21, size = 3, colour="black", alpha=0.7) + 
+  ggtitle("Drug Sensitivity Score vs IC50") +
+  scale_fill_discrete(name = "Drug Name", label = c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX")) +
+  xlab("IC50 [nM]") +
+  ylab("Drug Sensitivty Score") +
+  facet_wrap(~tissue) +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(strip.text = element_text(size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = c(0.8,0.7),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("dss_ic50_facet.png", dss_ic50_facet, width=8, height=5.5)
+ggsave("dss_ic50_facet.svg", dss_ic50_facet, width=6, height=4.5)
+
+```
+#DSS vs drug
+```{r}
+dss_drugname_tissuegroup = ggplot(DSS_bold, aes(x= Drug.Name, y = DSS_3, fill=tissue)) +
+  geom_boxplot() + 
+  ggtitle("Drug Sensitivity Score vs Drug Name") +
+  scale_x_discrete(label = c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX")) +
+  scale_fill_manual(name="Tissue", label=c("Cancer", "Normal"), values = c("#E41A1C" ,"#377EB8")) +
+  xlab("Drug Name") +
+  ylab("Drug Sensitivty Score") +
+  ylim(0,100) +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 12, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 12)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(strip.text = element_text(size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = c(0.9,0.8),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("dss_drugname_tissuegroup.png", dss_drugname_tissuegroup, width=8, height=4.5)
+ggsave("dss_drugname_tissuegroup.svg", dss_drugname_tissuegroup, width=8, height=4.5)
+
+
+dss_drugname_plot = ggplot(DSS_bold, aes(x= Drug.Name, y = DSS_3)) +
+  geom_boxplot(fill = c(rep(c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3"), 2))) + 
+  ggtitle("Drug Sensitivity Score vs Drug Name") +
+  xlab("Drug Name") +
+  ylab("Drug Sensitivty Score") +
+  ylim(0,100) +
+  stat_compare_means(size=5, label.y = 80, label.x = 2) + 
+  scale_x_discrete(label = c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX")) +
+  facet_wrap(~tissue) +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(strip.text = element_text(size=14)) +
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = c(0.8,0.8),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("dss_drugname_plot.png", dss_drugname_plot, width=6, height=4.5)
+ggsave("dss_drugname_plot.svg", dss_drugname_plot, width=6, height=4.5)
+
+dunn.test::dunn.test(DSS_bold$DSS_3, DSS_bold$Drug.Name, method = "BH")
+FSA::dunnTest(DSS_bold$DSS_3, DSS_bold$Drug.Name, method = "bh")
+
+```
+#DSS histogram
+```{r}
+DSS_bold_all = DSS_bold
+DSS_bold_all$index = seq(nrow(DSS_bold_all))
+DSS_bold_all = DSS_bold_all[order(DSS_bold_all$DSS_3, decreasing = TRUE),]  
+order_id = DSS_bold_all$Patient.ID
+
+dss_histogram = ggplot(DSS_bold_all, aes(x = reorder(index, -DSS_3), y = DSS_3, fill=Drug.Name)) +
+  geom_bar(stat = "identity", position="dodge") + 
+  scale_x_discrete(labels = order_id) +
+  ggtitle("Drug Sensitivity Score Ranking") +
+  xlab("Sample ID") +
+  ylab("Drug Sensitivty Score") +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 12, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 12)) + 
+                theme(plot.title = element_text(colour="black", size=12,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =12, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=12)) +
+                theme(legend.title = element_text(color = "black", size = 12),
+                      legend.text = element_text(color = "black", size = 12),
+                      legend.position = c(0.8,0.6),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("dss_histogram.png", dss_histogram, width=12, height=4)
+ggsave("dss_histogram.svg", dss_histogram, width=12, height=4)
+```
+#DSS Heatmap
+```{r}
+####heatmap
+library(reshape2)
+library(pheatmap)
+DSS_bold_wide = dcast(DSS_bold, Patient.ID + tissue~Drug.Name, value.var="DSS_3" )
+
+DSS_bold_wide = tibble::column_to_rownames(DSS_bold_wide, "Patient.ID")
+
+cols= RColorBrewer::brewer.pal(9, "Reds")
+pheatmap(DSS_bold_wide[,2:6], color= colorRampPalette(RColorBrewer::brewer.pal(9, "Reds"))(1000))
+
+png("dss_heatmap.png", width = 6, height = 4, units = 'in', res = 300)
+pheatmap(DSS_bold_wide[,2:6], color= colorRampPalette(RColorBrewer::brewer.pal(9, "Reds"))(1000))
+dev.off()
+
+svg("dss_heatmap.svg", width = 10, height = 6)
+pheatmap(t(DSS_bold_wide[,2:6]), color= colorRampPalette(RColorBrewer::brewer.pal(9, "Reds"))(1000),
+         labels_row=c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX"),
+         angle_col = 45,
+         cellwidth = 24,
+         cellheight = 12,
+         treeheight_row = 25,
+         treeheight_col = 25)
+dev.off()
+
+```
+#Paired individual DSS per drug
+```{r}
+library(stringr)
+#54,55,59,66,71,72,76
+
+DSS_bold_wide_individual_dDSS = DSS_bold
+DSS_bold_wide_individual_dDSS = dplyr::filter(DSS_bold_wide_individual_dDSS, !Patient.ID=="75N")
+DSS_bold_wide_individual_dDSS = dplyr::filter(DSS_bold_wide_individual_dDSS, !Patient.ID=="77C")
+DSS_bold_wide_individual_dDSS = dplyr::filter(DSS_bold_wide_individual_dDSS, !Patient.ID=="62C")
+DSS_bold_wide_individual_dDSS = dplyr::filter(DSS_bold_wide_individual_dDSS, !Patient.ID=="64C")
+DSS_bold_wide_individual_dDSS = dplyr::filter(DSS_bold_wide_individual_dDSS, !Patient.ID=="67C")
+
+DSS_bold_wide_individual_dDSS$patient = str_sub(DSS_bold_wide_individual_dDSS$Patient.ID,1,nchar(DSS_bold_wide_individual_dDSS$Patient.ID)-1)
+DSS_bold_wide_individual_dDSS$patient = as.factor(DSS_bold_wide_individual_dDSS$patient )
+
+DSS_bold_wide_individual_dDSS = dcast(DSS_bold_wide_individual_dDSS,  patient + Drug.Name~tissue, value.var="DSS_3" )
+DSS_bold_wide_individual_dDSS$dDSS = DSS_bold_wide_individual_dDSS$Cancer-DSS_bold_wide_individual_dDSS$Normal
+
+DSS_bold_wide_individual_dDSS$index = seq(nrow(DSS_bold_wide_individual_dDSS))
+DSS_bold_wide_individual_dDSS = DSS_bold_wide_individual_dDSS[order(DSS_bold_wide_individual_dDSS$dDSS, decreasing = TRUE),]  
+organoid_id = DSS_bold_wide_individual_dDSS$patient
+```
+#Paired dDSS swimmer plot
+```{r}
+ddss_swimmer = ggplot(DSS_bold_wide_individual_dDSS, aes(x = reorder(index, -dDSS), y = dDSS, fill=Drug.Name)) +
+  geom_bar(stat = "identity", position="dodge") + 
+  scale_x_discrete(labels = organoid_id) +
+  ggtitle("differential Drug Sensitivity Score Ranking") +
+  scale_fill_discrete(name = "Drug Name", label = c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX")) +
+  xlab("Sample ID") +
+  ylab("dDSS") +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 12, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 12)) + 
+                theme(plot.title = element_text(colour="black", size=12,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =12, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=12)) +
+                theme(legend.title = element_text(color = "black", size = 12),
+                      legend.text = element_text(color = "black", size = 12),
+                      legend.position = c(0.5,0.9),
+                      legend.direction = "horizontal",
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("ddss_swimmer.png", ddss_swimmer, width=8, height=4.5)
+ggsave("ddss_swimmer.svg", ddss_swimmer, width=8, height=4.5)
+
+```
+
+#####dDSS analysis of paired samples
+```{r}
+dDSS_bold = DSS_bold
+dDSS_bold_norm = dplyr::filter(dDSS_bold, tissue=="Normal")
+dDSS_bold_cancer = dplyr::filter(dDSS_bold, tissue=="Cancer")
+
+mean_bold = mean(dDSS_bold_norm[dDSS_bold_norm$Drug.Name=="BOLD",]$DSS_3)
+mean_flot_bold = mean(dDSS_bold_norm[dDSS_bold_norm$Drug.Name=="FLOT_BOLD",]$DSS_3)
+mean_folfox_bold = mean(dDSS_bold_norm[dDSS_bold_norm$Drug.Name=="FOLFOX_BOLD",]$DSS_3)
+mean_flot = mean(dDSS_bold_norm[dDSS_bold_norm$Drug.Name=="FLOT",]$DSS_3)
+mean_folfox = mean(dDSS_bold_norm[dDSS_bold_norm$Drug.Name=="FOLFOX",]$DSS_3)
+
+
+dDSS_bold_cancer$control_DSS = c(rep(mean_bold, 11),rep(mean_flot_bold, 11),rep(mean_folfox_bold, 11),rep(mean_flot, 11),rep(mean_folfox, 11)) #11 is for the number of cancer samples
+dDSS_bold_cancer$dDSS = dDSS_bold_cancer$DSS_3 -dDSS_bold_cancer$control_DSS
+
+dDSS_bold_cancer$index = seq(nrow(dDSS_bold_cancer))
+ggplot(dDSS_bold_cancer, aes(x = reorder(index, -dDSS), y = dDSS, fill=Drug.Name)) +
+  geom_bar(stat = "identity", position="dodge")
+
+ggplot(dDSS_bold_cancer, aes(x= Patient.ID, y = dDSS)) +
+  geom_boxplot() 
+kruskal.test(dDSS_bold_cancer$dDSS, dDSS_bold_cancer$Patient.ID)
+
+ggplot(dDSS_bold_cancer, aes(x= Drug.Name, y = dDSS)) +
+  geom_boxplot() 
+kruskal.test(dDSS_bold_cancer$dDSS, dDSS_bold_cancer$Drug.Name)
+
+
+ddss_paired_box_meancont = ggplot(dDSS_bold_cancer, aes(x= Drug.Name, y = dDSS, fill=Drug.Name)) +
+  geom_boxplot(fill = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")) + 
+  stat_compare_means(size=5, label.y = 15, label.x = 1) +
+  ggtitle("differential Drug Sensitivity Score Ranking") +
+  scale_x_discrete(name = "Drug Name", label = c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX")) +
+  ylab("dDSS") +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14))
+
+ggsave("ddss_paired_box_meancont.png", ddss_paired_box_meancont, width=6, height=4)
+ggsave("ddss_paired_box_meancont.svg", ddss_paired_box_meancont, width=6, height=4)
+
+dunn.test::dunn.test(dDSS_bold_cancer$dDSS, dDSS_bold_cancer$Drug.Name, method = "BH")
+FSA::dunnTest(dDSS_bold_cancer$dDSS, dDSS_bold_cancer$Drug.Name, method = "bh")
+```
+
+#R synergy test
+```{r}
+library(BIGL)
+library(rgl)
+```
+
+#Organize Data
+```{r}
+urlfile<-'https://raw.githubusercontent.com/skubleny/BOLD_100_Gastric_Organoid/main/Data/assay_results.xlsx'
+bold_effect_FLOT = read.xlsx(urlfile, sheet="BOLD_nrmlzd_wide")
+bold_effect_FLOT = dplyr::select(bold_effect_FLOT, -"FOLFOX_Dose")
+bold_effect_FLOT = tidyr::gather(bold_effect_FLOT, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FLOT_Dose))
+bold_effect_FLOT = dplyr::select(bold_effect_FLOT, -"ID")
+
+
+bold_effect_FOLFOX = read.xlsx(urlfile, sheet="BOLD_nrmlzd_wide")
+bold_effect_FOLFOX = dplyr::select(bold_effect_FOLFOX, -"FLOT_Dose")
+bold_effect_FOLFOX = tidyr::gather(bold_effect_FOLFOX, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FOLFOX_Dose))
+bold_effect_FOLFOX = dplyr::select(bold_effect_FOLFOX, -"ID")
+
+
+FLOT_effect = read.xlsx(urlfile, sheet="FLOT_nrmlzd_wide")
+FLOT_effect = tidyr::gather(FLOT_effect, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FLOT_Dose))
+FLOT_effect = dplyr::select(FLOT_effect, -"ID")
+
+FOLFOX_effect = read.xlsx(urlfile, sheet="FOLFOX_nrmlzd_wide")
+FOLFOX_effect = tidyr::gather(FOLFOX_effect, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FOLFOX_Dose))
+FOLFOX_effect = dplyr::select(FOLFOX_effect, -"ID")
+
+bold_flot_combo = read.xlsx(urlfile, sheet="BOLD_FLOT_nrmlzd_wide")
+bold_flot_combo = tidyr::gather(bold_flot_combo, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FLOT_Dose))
+bold_flot_combo = dplyr::select(bold_flot_combo, -"ID")
+
+bold_folfox_combo = read.xlsx(urlfile, sheet="BOLD_FOLFOX_nrmlzd_wide")
+bold_folfox_combo = tidyr::gather(bold_folfox_combo, ID, value, effect_1:effect_3, -c(Patient.ID, BOLD_Dose, FOLFOX_Dose))
+bold_folfox_combo = dplyr::select(bold_folfox_combo, -"ID")
+
+flot_isobol = rbind(bold_effect_FLOT, FLOT_effect)
+flot_isobol = rbind(flot_isobol, bold_flot_combo)
+colnames(flot_isobol) = c("Patient.ID","d1", "d2", "effect")
+flot_isobol <- flot_isobol[, c("Patient.ID", "effect", "d1", "d2")]
+
+folfox_isobol = rbind(bold_effect_FOLFOX, FOLFOX_effect)
+folfox_isobol = rbind(folfox_isobol, bold_folfox_combo)
+colnames(folfox_isobol) = c("Patient.ID","d1", "d2", "effect")
+folfox_isobol <- folfox_isobol[, c("Patient.ID", "effect", "d1", "d2")]
+```
+
+##54C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="54C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_54Cflot = summary(rs)
+
+isobologram(rs)
+```
+##55C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="55C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+
+rs_55Cflot = summary(rs)
+isobologram(rs)
+```
+##59C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="59C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_59Cflot = summary(rs)
+isobologram(rs)
+```
+##62C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="62C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_62Cflot = summary(rs)
+isobologram(rs)
+```
+##64C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="64C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_64Cflot = summary(rs)
+isobologram(rs)
+```
+##66C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="66C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_66Cflot = summary(rs)
+isobologram(rs)
+```
+##67C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="67C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_67Cflot = summary(rs)
+isobologram(rs)
+```
+##71C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="71C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_71Cflot = summary(rs)
+isobologram(rs)
+```
+##72C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="72C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_72Cflot = summary(rs)
+isobologram(rs)
+```
+##76C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="76C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_76Cflot = summary(rs)
+isobologram(rs)
+```
+##77C FLOT
+```{r}
+set.seed(99)
+
+assay_data = dplyr::filter(flot_isobol, Patient.ID=="77C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+rs_77Cflot = summary(rs)
+isobologram(rs)
+```
+##54C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="54C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##55C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="55C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##59C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="59C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##62C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="62C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##64C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="64C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##66C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="66C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##67C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="67C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##71C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="71C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##72C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="72C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##76C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="76C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+##77C FOLFOX
+```{r}
+set.seed(99)
+assay_data = dplyr::filter(folfox_isobol, Patient.ID=="77C")
+assay_data = assay_data[,-1]
+assay_data = na.omit(assay_data)
+
+assay_data$effect = 100-assay_data$effect
+
+fitMarginals(assay_data)
+marginalFit <- fitMarginals(assay_data,"shared_asymptote" = FALSE,names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+marginalFit <- fitMarginals(assay_data, fixed = c("m1" = 100, "m2" = 100, "b"=0),"shared_asymptote" = FALSE,  names = c("BOLD", "FLOT"))
+summary(marginalFit)
+plot(marginalFit)
+
+rs <- fitSurface(assay_data, marginalFit,
+                 null_model = "loewe2",
+                 method = "model",
+                 B.CP = 50, statistic = "both", parallel = FALSE)
+summary(rs)
+isobologram(rs)
+```
+
+
+combo_nanostring_organoid <- read.csv("~/Documents/R projects/Gastric cancer ISD/ISDEvaluation-master/combo_nanostring_organoid.csv")
+combo_nanostring_organoid = combo_nanostring_organoid[,-1]
+#Organoid drug response 
+```{r}
+
+###Simple
+cor_list <- by(nanostring_data[,c(2:5,7,19)], nanostring_data[,13], function(x) cor(x, method="pearson"))
+cor_list = lapply(cor_list, function(x) x[(colnames(x) %in% c("DSS_3"))])
+cor_list <- data.frame(ID = rep(names(cor_list), sapply(cor_list, length)),
+                 Obs = unlist(cor_list))
+cor_list$subtype = rep(c(paste(colnames(nanostring_data[,c(2:5,7,19)]))),5)
+
+cor_list_wide = tidyr::spread(cor_list, subtype, Obs)
+cor_list_wide = tibble::column_to_rownames(cor_list_wide,  "ID")
+cor_list_wide = dplyr::select(cor_list_wide, -"DSS_3")
+
+cols_dss_subtype = rev(RColorBrewer::brewer.pal(9, "RdBu"))
+paletteLength = 1000
+myBreaks_dss_subtype <- c(seq(min(cor_list_wide), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(cor_list_wide)/paletteLength, max(cor_list_wide), length.out=floor(paletteLength/2)))
+
+svg("dss_subtye_heatmap.svg", width = 6, height = 4)
+pheatmap(cor_list_wide, 
+         color=colorRampPalette(colors =cols_dss_subtype)(1000),
+         breaks=myBreaks_dss_subtype,
+         labels_row=c("BOLD", "FLOT", "BOLD + FLOT", "FOLFOX", "BOLD + FOLFOX"),
+         labels_col=c("TME High", "CIN", "EBV", "GS", "MSI"),
+         angle_col = 45,
+         cellwidth = 36,
+         cellheight = 24,
+         treeheight_row = 25,
+         treeheight_col = 25)
+dev.off()
+
+###HMISC rcorr
+
+combo_nanostring_cor =   by(nanostring_data[,c(2:5,7,19)], nanostring_data[,13], function(x) Hmisc::rcorr(as.matrix(x)))
+
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+
+cor_list_df_bold = flattenCorrMatrix(combo_nanostring_cor$BOLD$r, combo_nanostring_cor$BOLD$P)
+cor_list_df_bold = cor_list_df_bold %>% dplyr::filter(column== "DSS_3")
+
+cor_list_df_flot = flattenCorrMatrix(combo_nanostring_cor$FLOT$r, combo_nanostring_cor$FLOT$P)
+cor_list_df_flot = cor_list_df_flot %>% dplyr::filter(column== "DSS_3")
+
+cor_list_df_FLOT_BOLD = flattenCorrMatrix(combo_nanostring_cor$FLOT_BOLD$r, combo_nanostring_cor$FLOT_BOLD$P)
+cor_list_df_FLOT_BOLD = cor_list_df_FLOT_BOLD %>% dplyr::filter(column== "DSS_3")
+
+cor_list_df_FOLFOX = flattenCorrMatrix(combo_nanostring_cor$FOLFOX$r, combo_nanostring_cor$FOLFOX$P)
+cor_list_df_FOLFOX = cor_list_df_FOLFOX %>% dplyr::filter(column== "DSS_3")
+
+cor_list_df_FOLFOX_BOLD = flattenCorrMatrix(combo_nanostring_cor$FOLFOX_BOLD$r, combo_nanostring_cor$FOLFOX_BOLD$P)
+cor_list_df_FOLFOX_BOLD = cor_list_df_FOLFOX_BOLD %>% dplyr::filter(column== "DSS_3")
+
+###NO SIGNIFICANT CORRELATIONS. 
+
+##########
+
+
+flot_bold = c(-9.6972,
+-6.4444,
+-7.0648,
+-7.5049,
+-9.9627,
+-17.4927,
+-10.2865,
+12.1566,
+10.4729,
+-9.2612,
+-9.3231)
+folfox_bold = c(-3.7986,
+-3.008151,
+-5.876878,
+-5.8256,
+-6.3551,
+-3.3792,
+3.8674,
+22.13649,
+16.04297,
+-9.2475,
+-3.2113)
+
+
+bigl_synergy = data.frame(flot_bold,folfox_bold)
+bigl_synergy$sample_id = c("54C", "55C", "59C","62C","64C","66C","67C", "71C", "72C","76C","77C")
+wilcox.test(bigl_synergy$flot_bold,bigl_synergy$folfox_bold)
+
+
+bigl_synergy_long = tidyr::gather(bigl_synergy,drug, synergy, flot_bold:folfox_bold )
+
+
+bigl_synergy_plot = ggplot(bigl_synergy_long, aes(x = drug, y=synergy, fill=drug)) +  
+  geom_boxplot() +
+  scale_x_discrete(name="Drug Combination", label=c("BOLD + FLOT", "BOLD + FOLFOX")) +
+  ylab("Synergy") +
+  ggtitle("BIGL Loewe Additivity") +
+  scale_fill_manual(name="drug",label=c("a","b"), values=c("#4DAF4A", "#984EA3")) +
+  stat_compare_means(size=5,label.y = 18) +
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(strip.text = element_text(size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = "none",
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7)))
+
+ggsave("bigl_synergy_plot.svg", bigl_synergy_plot, width=5, height=4)
+
+
+bigl_synergy_subtype = merge(bigl_synergy, nanostring_data, by="sample_id")
+
+
+bigl_synergy_subtype_long = tidyr::gather(bigl_synergy_subtype,subtype, subtype_score, c("STAD_CIN","STAD_EBV","STAD_GS","STAD_MSI", "High_cal" ))
+
+bigl_synergy_subtype_long$subtype = as.factor(bigl_synergy_subtype_long$subtype)
+levels(bigl_synergy_subtype_long$subtype)= c("TME High", "CIN", "EBV", "GS", "MSI")
+
+#Facet plot
+folfox_bold_subtype = ggplot(bigl_synergy_subtype_long, aes(x=subtype_score, y=folfox_bold)) + 
+  ylab("BIGL Overall Effect") +
+  xlab("Subtype Score") +
+  ggtitle("BIGL Overall Effect vs. Molecular Subtype for BOLD + FOLFOX") +
+  geom_smooth(method="lm", se=FALSE, colour="gray", size=1.5) +
+  geom_point(size=3) + 
+  ylim(-20,25) +
+  stat_cor(size=4.5,method="pearson", label.y=-15,vjust=0.5) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(strip.text = element_text(size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = c(0.8,0.6),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7))) +
+  facet_grid(~subtype) 
+
+ggsave("folfox_bold_subtype.svg", folfox_bold_subtype, width=10, height=3)
+
+#Facet plot 2
+flot_bold_subtype = ggplot(bigl_synergy_subtype_long, aes(x=subtype_score, y=flot_bold)) + 
+  ylab("BIGL Overall Effect") +
+  xlab("Subtype Score") +
+  ggtitle("BIGL Overall Effect vs. Molecular Subtype for BOLD + FLOT") +
+  geom_smooth(method="lm", se=FALSE, colour="gray", size=1.5) +
+  geom_point(size=3) + 
+  ylim(-20,25) +
+  stat_cor(size=4.5,method="pearson", label.y=20,vjust=0.5) + 
+  theme_bw() +
+  theme(axis.text.x = element_text(colour="black", size = 14, angle=45, hjust=1)) +
+                theme(axis.text.y = element_text(colour="black",size = 14)) + 
+                theme(plot.title = element_text(colour="black", size=14,hjust = 0, vjust=0)) +
+                theme(axis.title.x = element_text(colour="black", size =14, vjust = 0.05)) +
+                theme(axis.title.y = element_text(colour="black", size=14)) +
+                theme(strip.text = element_text(size=14)) +
+                theme(legend.title = element_text(color = "black", size = 14),
+                      legend.text = element_text(color = "black", size = 14),
+                      legend.position = c(0.8,0.6),
+                      legend.background = element_rect(size=0.5, linetype="solid",colour ="black",fill=alpha("white",0.7))) +
+  facet_grid(~subtype) 
+ggsave("flot_bold_subtype.svg", flot_bold_subtype, width=10, height=3)
+
+
+```
+
